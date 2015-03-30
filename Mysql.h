@@ -14,7 +14,7 @@
 #define MAINSERVERIP  "192.168.1.2"
 #define LOCALCABINETID  1
 #define MAXROW   4
-#define MAXCOLUMN 4
+#define MAXCOLUMN  4
 
 //#define MAINSERVERIP  "192.168.1.2"
 MYSQL mysql;

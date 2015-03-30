@@ -93,6 +93,20 @@ void *ServeForSlaveServer(void *arg)
 	return sockfd;
 } */
 
+int connect_retry(int sockfd,const struct sockaddr *addr,socklen_t alen)
+//支持重试的连接
+{
+	int nsec;
+	for(nsec=1;nsec<= MAXSLEEP;nsec<<=1)
+	{
+		if(connect(sockfd,addr,alen) == 0)
+			return 0;
+		if(nsec <= MAXSLEEP/2)
+			usleep(nsec*100000);//微妙单位
+	}
+	return -1;
+	
+}
 //³õÊŒ»¯ŽÓ·þÎñÆ÷¶ËµÄTCPÁ¬œÓ(Ô­ÃûInitUpdateServer)
 int InitSlaveServerTCP(const int port)
 {
@@ -109,7 +123,7 @@ int InitSlaveServerTCP(const int port)
 	desaddr.sin_addr.s_addr=inet_addr(MAINSERVERIP);
 	desaddr.sin_port=htons(port);
 
-	if(connect(socktd,(SOCKADDR *)&desaddr,sizeof(SOCKADDR_IN))<0)
+	if(connect_retry(socktd,(SOCKADDR *)&desaddr,sizeof(SOCKADDR_IN))<0)
 	{
 		perror("connect error\n");
 		return -1;

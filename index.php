@@ -29,15 +29,14 @@
    // echo "".$libid["cabinetid"]."号离线库<br>";
     //输出第一行列标题
     echo "<table border='5' width=700 height=700><tr><td>&nbsp</td>";
-	//为方便显示，改为4行4列
-    for($i=0; $i<4; $i++)
+    for($i=0; $i<30; $i++)
            echo "<td>".$i."列</td>";
     echo "</tr>";
   //循环输出数据库表main_caddy_address_map的内容到表格
-  for ($i = 0;$i<4; $i++) {
+  for ($i = 0;$i<12; $i++) {
    
     echo "<tr><td>".$i."行</td>";
-    for ($j = 0;$j <4; $j++)
+    for ($j = 0;$j <30; $j++)
     {
        $flag=false;
       //用sql语句获取数据表main_caddy_address_map数据

@@ -70,7 +70,7 @@ void *boardserver()
 }
 
 //监听广播信息并保存
-void  listen_board()
+int  listen_board()
 {
 	int num=0;
 	int i;
@@ -89,7 +89,7 @@ void  listen_board()
 	while(1)
 	{
 		if(timeout)
-			break;
+			return num;
 		//庸悴サ刂方邮芟?
 //		printf("timeout = %d",timeout);
 		ret=recvfrom(sock,&pkt_server,sizeof(pkt_server), 0, (struct sockaddr*)&from,(socklen_t*)&len);

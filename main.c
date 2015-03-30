@@ -15,6 +15,7 @@ void ServeAsSlaveServer();
 void setmainip(const char *IP);
 void setlocalip();
 void *SendMysqlUpdate();
+void SendLocalTable();
 
 //判断主服务器是否存在
 void ismainexist()
@@ -52,7 +53,10 @@ static void sig_alrm(int signo)
 	timeout=1;
 //	printf("alarm\n");
 }
-	
+static void sig_usr(int signo)
+{
+	exit(0);
+}
 int main()
 {
 //改
@@ -63,7 +67,7 @@ int main()
 	timeout=0;
 	mysqlinit();
 //	pthread_mutex_init(&mutex,NULL);//最后没有使用
-	setmainip(LOCALHOST);//调试程序使用，将模拟终止的主机ip地址设为原地址，最终不应该有此语句。
+//	setmainip(LOCALHOST);//调试程序使用，将模拟终止的主机ip地址设为原地址，最终不应该有此语句。
 	if(Udp_board_init()==-1)
 	{
 		fprintf(stderr,"socket init error\n");
@@ -200,6 +204,8 @@ void ListenForAllTable()
 	int clfd[MLEN];//每个连接对应的套接字数组
 	int count=0;
 	puts("now the main server process 1 is working");
+	if(signal(SIGUSR1,sig_usr)==SIG_ERR)
+		perror("signal sig_usr1 set error");
 	while(1)
 	{
 		{
@@ -273,6 +279,8 @@ void ListenForTableUpdate()
 	int ret;
 	int clfd[MLEN],count=0;
 	puts("now the main server process2  is working");
+	if(signal(SIGUSR1,sig_usr)==SIG_ERR)
+		perror("signal sigusr set error");
 	while(1)
 	{
 		{
@@ -343,6 +351,11 @@ void *SendMysqlUpdate()
 				{
 					perror("send msg failed");
 					close(sockfd);
+					//将本地整个数据库表存到全局变量pkt_send中
+					selecttable(LOCALCABINETID,SLAVETABLENAME);
+					//向主服务器发送自己的整个数据库表（存储在全局变量pkt_send中）
+					SendLocalTable();
+					sockfd=InitSlaveServerTCP(TCP_PORT2);
 				}
 				updateflag=0;
 				usleep(1000000);//1000000微妙即1000毫秒发送一次更新信息
@@ -394,6 +407,9 @@ void ServeAsMainServer()
 {
 	pid_t pid1,pid2;
 	pthread_t  tid[3];
+	int flag=0;
+	int cabinetcountold=0;
+	int cabinetcountnew=0;
 	
 //初始化
 	//将IP地址设置为主服务器地址
@@ -404,6 +420,9 @@ void ServeAsMainServer()
 	SynLocalTable();
 	timeout=0;
 	
+	//创建线程3,广播主服务器自己的存活信息
+	pthread_create(&tid[2],NULL,boardserver,NULL);
+					
 	//创建进程1，接收各从服务器发来的整个数据库表信息并插入到总表
 	if((pid1=fork())<0)
 		perror("child process 1 fork error\n");
@@ -419,13 +438,12 @@ void ServeAsMainServer()
 				else    //parent
 				{
 					//主进程创建三线程
-					sleep(2);
+					sleep(1);//sleep时间过长，导致另外的从服务器监听不到主服务器广播，故将线程3提前创建
 					//创建线程1，更新本地数据库。使用生成随机数的方式，模拟光盘匣位置的变动，实际使用时，需使用RFID得到的信息
 					pthread_create(&tid[0],NULL,UpdateMysqlTable,NULL);
 					//创建线程2，将更新的数据库信息发送给主服务器
 					pthread_create(&tid[1],NULL,SendMysqlUpdate,NULL);
-					//创建线程3,广播主服务器自己的存活信息
-					pthread_create(&tid[2],NULL,boardserver,NULL);
+					
 					while(1)
 					{
 						memset(pkt_exist,0,MAX_CABINET_NUM*sizeof(PKT_EXIST));
@@ -438,11 +456,33 @@ void ServeAsMainServer()
 						timeset.it_interval.tv_sec = 0;
 						timeset.it_interval.tv_usec = 0;
 						timeset.it_value.tv_sec = 0;
-						timeset.it_value.tv_usec = 300000;//设置定时器为300ms
+						timeset.it_value.tv_usec = 400000;//设置定时器为400ms
 						if(-1 == setitimer(ITIMER_REAL,&timeset,NULL))
 							perror("Setitimer error");
-						//监听广播信息并保存
-						listen_board();
+						//监听广播信息并保存i
+						if(flag)
+							cabinetcountnew=listen_board();
+						else
+						{
+							cabinetcountold=listen_board();
+						}
+						printf("%d %d\n",cabinetcountnew,cabinetcountold);
+						if(cabinetcountold<cabinetcountnew && flag==1)
+						{
+							int num=0;
+							setmainip(LOCALHOST);
+							for(num=0;num<3;num++)
+								pthread_cancel(tid[num]);
+							kill(pid1,SIGUSR1);
+							kill(pid2,SIGUSR1);
+							if(waitpid(pid1,NULL,0)!=pid1)
+								perror("wait pid1 error");
+							if(waitpid(pid2,NULL,0)!=pid2)
+								perror("wait pid2 error");
+							mainserflag=0;
+							return;
+						}
+						flag=1;
 						//将不存活的从服务器在主服务器中的数据删除
 						DealSlaveServer();
 					}
@@ -457,14 +497,18 @@ void SendLocalTable()
 	DealPipe();
 	//初始化发送TCP
 	sockfd=InitSlaveServerTCP(TCP_PORT1);
-	if(sockfd<0)
+	while(sockfd<0)
+	{
 		printf("socket num error\n");
+		sockfd=InitSlaveServerTCP(TCP_PORT1);
+	}
 	//将全局变量pkt_send中的整个数据库表信息发送给主服务器
-	if(send(sockfd,&pkt_send,sizeof(pkt_send),0)<0)
+	while(send(sockfd,&pkt_send,sizeof(pkt_send),0)<0)
 	{
 		perror("tcp_client send message error");
 	}
 	close(sockfd);
+	
 }
 
 //从服务器模块
@@ -472,6 +516,8 @@ void ServeAsSlaveServer()
 {
 	pthread_t tid[3];
 	int num;
+	//与主服务器一致
+	sleep(1);
 	//将本地整个数据库表存到全局变量pkt_send中
 	selecttable(LOCALCABINETID,SLAVETABLENAME);
 	//向主服务器发送自己的整个数据库表（存储在全局变量pkt_send中）
