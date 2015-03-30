@@ -6,14 +6,15 @@
 #include <string.h>
 
 extern void *boardserver();
-int mainserflag=0;
+int mainserflag=0;//Ö÷·şÎñÆ÷´æÔÚ±êÖ¾
 void ServeAsMainServer();
-void CompeteForMainServer();
+int CompeteForMainServer();
 void ServeAsSlaveServer();
 void setmainip(const char *IP);
 void setlocalip();
 void *SendMysqlUpdate();
 
+//ÅĞ¶ÏÖ÷·şÎñÆ÷ÊÇ·ñ´æÔÚ
 void ismainexist()
 {
 	int num=0;
@@ -30,8 +31,11 @@ void ismainexist()
 	}
 
 }
+
 static void DealPipe()
 {
+//³ÌĞòÔËĞĞ¹ı³ÌÖĞ£¬»áÓöµ½ĞÅºÅSIGPIPE¡£µ±ÏòÒÑ¹Ø±ÕµÄSOCK_STREAMÌ×½Ó×ÖÊ±£¬»á·¢ËÍ¸ÃĞÅºÅ
+//×èÈû¸ÃĞÅºÅ£¬²»½«ÆäµİËÍ¸ø½ø³ÌµÄĞÅºÅ¼¯£ºÔÚÏß³ÌÖĞĞèÒªÊ¹ÓÃpthread_sigmaskº¯Êı
 	sigset_t signal_mask;
 	sigemptyset(&signal_mask);
 	sigaddset(&signal_mask,SIGPIPE);
@@ -39,6 +43,8 @@ static void DealPipe()
 	if(rc!=0)
 		printf("block sigpipe error\n");
 }
+
+//¶¨Ê±Æ÷Ê±¼äµ½Ê±µÄĞÅºÅ´¦Àíº¯Êı
 static void sig_alrm(int signo)
 {
 	timeout=1;
@@ -47,22 +53,25 @@ static void sig_alrm(int signo)
 	
 int main()
 {
-//æ”¹
-	struct sigaction alarmact;
-	bzero(&alarmact,sizeof(alarmact));
-	alarmact.sa_handler = sig_alrm;
-	alarmact.sa_flags = SA_NOMASK;
-
+//¸Ä
+	int flag=0;//Ö÷»úÊÇ·ñÎªÖ÷·şÎñÆ÷µÄ±êÖ¾
+//³õÊ¼»¯
+	//È«¾Ö±äÁ¿´æ´¢ÊÕÌıµ½µÄ¹ã²¥ĞÅÏ¢
+	memset(pkt_exist,0,MAX_CABINET_NUM*sizeof(PKT_EXIST));
+	timeout=0;
 	mysqlinit();
-	pthread_mutex_init(&mutex,NULL);
-	setmainip(LOCALHOST);
+//	pthread_mutex_init(&mutex,NULL);//×îºóÃ»ÓĞÊ¹ÓÃ
+	setmainip(LOCALHOST);//µ÷ÊÔ³ÌĞòÊ¹ÓÃ£¬½«Ä£ÄâÖÕÖ¹µÄÖ÷»úipµØÖ·ÉèÎªÔ­µØÖ·£¬×îÖÕ²»Ó¦¸ÃÓĞ´ËÓï¾ä¡£
 	if(Udp_board_init()==-1)
 	{
 		fprintf(stderr,"socket init error\n");
 		return ;
 	}
-	memset(pkt_exist,0,MAX_CABINET_NUM*sizeof(PKT_EXIST));
-	timeout=0;
+	
+	struct sigaction alarmact;
+	bzero(&alarmact,sizeof(alarmact));
+	alarmact.sa_handler = sig_alrm;
+	alarmact.sa_flags = SA_NOMASK;
 	if(sigaction(SIGALRM,&alarmact,NULL) < 0 )
 	{
 		fprintf(stderr,"sigaction error\n");
@@ -85,11 +94,19 @@ int main()
 			ServeAsSlaveServer();
 		}
 		else
-			CompeteForMainServer();
+		{
+			flag=CompeteForMainServer();
+			if(flag)
+				ServeAsMainServer();
+			else
+				ServeAsSlaveServer();
+		}
 	}
 	return 0;
 }
-int IsMainServer()
+
+//ÅĞ¶Ï±¾»úIPÊÇ·ñÎª×îĞ¡IP
+int IsIPSminimum()
 {
 	int i=0;
 	char minip[16];
@@ -106,14 +123,13 @@ int IsMainServer()
 		i++;
 	}
 	if(0==strcmp(LOCALHOST,minip))
-		return 1;
+		return 1;//ÊÇ×îĞ¡IP£¬¾ºÑ¡³É¹¦Ö÷·şÎñÆ÷
 	else
-		return 0;
+		return 0;//²»ÊÇ×îĞ¡IP£¬¾ºÑ¡Ê§°Ü
 }
 
-
-
-void CompeteForMainServer()
+//ĞŞ¸ÄÎª·µ»ØÊÇ·ñ¾ºÑ¡³É¹¦£º1±íÊ¾³É¹¦£¬0±íÊ¾Ê§°Ü
+int CompeteForMainServer()
 {
 	int flag=0;
 	pthread_t tid;
@@ -128,13 +144,16 @@ void CompeteForMainServer()
 //	Udp_board_init();
 	listen_board();
 	pthread_cancel(tid);
-	flag=IsMainServer();
-	if(flag)
-		ServeAsMainServer();
-	else
-		ServeAsSlaveServer();
+	flag=IsIPSminimum();
+//ÒÔÏÂÎªĞŞ¸Ä£º
+//	if(flag)
+//		ServeAsMainServer();
+//	else
+//		ServeAsSlaveServer();
+	return flag;
 }
 
+//½«±¾»úµØÖ·ÉèÖÃÎªÖ÷·şÎñÆ÷µØÖ·
 void setmainip(const char *IP)
 {
 	char cmd[100];
@@ -143,6 +162,8 @@ void setmainip(const char *IP)
 	system("sudo route add default gw 192.168.1.1");
 //	system("sudo ifdown eth0;sudo ifup eth0");
 }
+
+//½«±¾»úµØÖ·ÉèÖÃÎªĞŞ¸ÄÇ°µØÖ·£¬ÓÃÓÚµ÷ÊÔÊ¹ÓÃ£¬ÕıÊ½°æ±¾²»ĞèÒª
 void setlocalip()
 {
 	char cmd[100];
@@ -153,16 +174,20 @@ void setlocalip()
 //	system("sudo ifdown eth0;sudo ifup eth0");
 }
 
+//½ÓÊÕ´Ó·şÎñÆ÷·¢À´µÄÕû¸öÊı¾İ¿â±í
 void ListenForAllTable()
 {
-	int sockfd=InitServer(TCP_PORT1);
+	//³õÊ¼»¯½ÓÊÕTCPÁ¬½Ó
+	int sockfd=InitMainServerTCP(TCP_PORT1);
 	pthread_t tid[MLEN];
 	int ret;
-	int clfd[MLEN],count=0;
+	int clfd[MLEN]£»//Ã¿¸öÁ¬½Ó¶ÔÓ¦µÄÌ×½Ó×ÖÊı×é
+	int count=0;
 	puts("now the main server process 1 is working");
 	while(1)
 	{
 		{
+			//clfd[count]Îª´Ë´ÎÁ¬½Ó¶ÔÓ¦µÄÌ×½Ó×Ö
 			clfd[count]=accept(sockfd,NULL,NULL);
 			if(clfd[count]==-1)
 			{
@@ -170,6 +195,7 @@ void ListenForAllTable()
 				close(sockfd);
 				perror("accept error\n");
 			}
+			//ÎªÃ¿Ò»¸öÁ¬½Ó½¨Á¢Ò»¸öÏß³Ì£¬´¦ÀíÆä·¢À´µÄÊı¾İ¿â±í
 			ret=pthread_create(&tid[count],NULL,ServeForSlaveServer,(void *)&clfd[count]);
 			if(ret!=0)
 			{
@@ -183,6 +209,8 @@ void ListenForAllTable()
 		}
 	}
 }
+
+//Ä£Äâ¹âÅÌÏ»Î»ÖÃ±ä¶¯
 void rand_num()
 {
 	int  caddyid;
@@ -193,13 +221,15 @@ void rand_num()
 	pkt_update.row=rand()%MAXROW;
 	pkt_update.coolumn=rand()%MAXCOLUMN;
 	pkt_update.cabinetid=LOCALCABINETID;
-//æ”¹ï¼šä¸è¾“å‡ºéšæœºä¿®æ”¹æ•°æ®
+//¸Ä£º²»Êä³öËæ»úĞŞ¸ÄÊı¾İ
 //printf("%d %d %d \n",caddyid,pkt_update.row,pkt_update.coolumn);
 }
+
+//½ÓÊÕ²¢´¦ÀíÊı¾İ¿â±íµÄ¸üĞÂ
 void *DealTableUpdate(void *arg)
 {
 	int clfd=*((int *)arg);
-//æ”¹ï¼šä¸è¾“å‡º
+//¸Ä£º²»Êä³ö
 //	printf("%d\n",clfd);
 	DealPipe();
 	PKT_UPDATE  pkt_recv;
@@ -207,7 +237,7 @@ void *DealTableUpdate(void *arg)
 	while(1)
 	{
 		ret=recv(clfd,&pkt_recv,sizeof(pkt_recv),0);
-//æ”¹ï¼šä¸éœ€è¾“å‡º
+//¸Ä£º²»ĞèÊä³ö
 //		printf("%d bytes receved\n",ret);
 		if(ret<=0)
 		{
@@ -219,10 +249,10 @@ void *DealTableUpdate(void *arg)
 	}
 }
 
-
+//½ÓÊÕ²¢´¦ÀíËùÓĞ´Ó·şÎñÆ÷·¢À´µÄÊı¾İ¿â±íµÄ¸üĞÂ
 void ListenForTableUpdate()
 {
-	int sockfd=InitUpdateMainServer(TCP_PORT2);
+	int sockfd=InitMainServerTCP(TCP_PORT2);
 	pthread_t tid[MLEN];
 	int ret;
 	int clfd[MLEN],count=0;
@@ -250,6 +280,8 @@ void ListenForTableUpdate()
 		}
 	}
 }
+
+//¸ù¾İÄ£ÄâµÄ¹âÅÌÏ»Î»ÖÃ±ä¶¯£¬¸üĞÂ±¾µØÊı¾İ¿â
 void *UpdateMysqlTable()
 {
 	updateflag=0;
@@ -260,23 +292,27 @@ void *UpdateMysqlTable()
 		{
 			rand_num();
 			update(pkt_update.caddyid,pkt_update.row,pkt_update.coolumn,LOCALCABINETID,SLAVETABLENAME);
-//æ”¹ï¼šæ— éœ€è¾“å‡º	
+//¸Ä£ºÎŞĞèÊä³ö	
 //	printf(" main update (update local data) success\n");
 			updateflag=1;
 			sleep(1);
 		}
 	}
 }
-static void deal_pipe()
-{
-	return ;
-}
+
+//Ã»ÓĞÓÃµ½
+//static void deal_pipe()
+//{
+//	return ;
+//}
+
+//½¨Á¢TCPÁ¬½Ó£¬½«±¾µØ¸üĞÂÊı¾İ·¢¸øÖ÷·şÎñÆ÷
 void *SendMysqlUpdate()
 {
 	int sockfd;
 	DealPipe();
 	printf("thread 2 is working\n");
-	sockfd=InitUpdateServer(TCP_PORT2);
+	sockfd=InitSlaveServerTCP(TCP_PORT2);
 	if(sockfd<0)
 		printf("socet num error\n");
 	else
@@ -285,13 +321,21 @@ void *SendMysqlUpdate()
 		{
 			if(updateflag)
 			{
-				SendUpdateData(sockfd);
+//²»ĞèÒªĞÂµÄº¯Êı
+				//SendUpdateData(sockfd);//
+				if(send(sockfd,&pkt_update,sizeof(pkt_update),0)<0)//Îªsockfd¶ø·Çsock£¬ÇĞ¼Ç£¡¸ÄÁËµ÷ÓÃ£¬±ğÍüÁË¸Ä²ÎÊı£¡£¡£¡
+				{
+					perror("send msg failed");
+					close(sockfd);
+				}
 				updateflag=0;
 				sleep(1);
 			}
 		}
 	}
 }
+
+//½«²»´æ»îµÄ´Ó·şÎñÆ÷ÔÚÖ÷·şÎñÆ÷ÖĞµÄÊı¾İÉ¾³ı
 void DealSlaveServer()
 {
 	int i;
@@ -300,6 +344,7 @@ void DealSlaveServer()
 	{
 		k=0;
 		flag=0;
+		//ÅĞ¶ÏÊÇ·ñ¼àÌıµ½´Ó·şÎñÆ÷iµÄ´æ»îĞÅÏ¢
 		while(1)
 		{
 			if(pkt_exist[k].status==0)
@@ -311,12 +356,13 @@ void DealSlaveServer()
 			}
 			k++;
 		}
-		if(flag==0)
+		if(flag==0)//Î´¼àÌıµ½£¬É¾³ı´Ó·şÎñÆ÷iÔÚÖ÷·şÎñÆ÷ÖĞµÄÊı¾İ
 			deletetable("*",0,0,i,MAINTABLENAME);
 	}
 
 }
 
+//½«±¾µØÊı¾İ¿â±íÖĞµÄÊı¾İÍ¬²½µ½ËùÓĞ·şÎñÆ÷ĞÅÏ¢µÄ×Ü±íÖĞ
 void SynLocalTable()
 {
 	int num=0;
@@ -326,64 +372,92 @@ void SynLocalTable()
 		insertable(pkt_send.data[num].caddyid,pkt_send.data[num].row,pkt_send.data[num].coolumn,pkt_send.data[num].cabinetid,MAINTABLENAME);
 }
 
+//Ö÷·şÎñÆ÷Ä£¿é
 void ServeAsMainServer()
 {
 	pid_t pid1,pid2;
 	pthread_t  tid[3];
+	
+//³õÊ¼»¯
+	//½«IPµØÖ·ÉèÖÃÎªÖ÷·şÎñÆ÷µØÖ·
 	setmainip(MAINSERVERIP);
+	//Çå¿Õ×Ü±í
 	deletetable("*",0,0,-1,MAINTABLENAME);
+	//½«±¾µØ"×Ó»õ¼Ü±í"¸üĞÂÖÁ"×Ü»õ¼Ü±í"
 	SynLocalTable();
 	timeout=0;
+	
+	//´´½¨½ø³Ì1£¬½ÓÊÕ¸÷´Ó·şÎñÆ÷·¢À´µÄÕû¸öÊı¾İ¿â±íĞÅÏ¢²¢²åÈëµ½×Ü±í
 	if((pid1=fork())<0)
 		perror("child process 1 fork error\n");
 	else if(pid1==0)//child  process 1
 		ListenForAllTable();
-	else
-	{
-		if((pid2=fork())<0)
-			perror("child process 2 fork error");
-		else if(pid2==0)  //child child process 2
-			ListenForTableUpdate();
-		else    //parent
+		else
 		{
-			sleep(2);
-			pthread_create(&tid[0],NULL,UpdateMysqlTable,NULL);
-			pthread_create(&tid[1],NULL,SendMysqlUpdate,NULL);
-			pthread_create(&tid[2],NULL,boardserver,NULL);
-			while(1)
-			{
-				memset(pkt_exist,0,MAX_CABINET_NUM*sizeof(PKT_EXIST));
-				timeout=0;
-				if(SIG_ERR==(signal(SIGALRM,sig_alrm)))
-					perror("alarm error");
-				alarm(5);
-				listen_board();
-				DealSlaveServer();
-			}
+			//´´½¨½ø³Ì2£¬½ÓÊÕ¸÷´Ó·şÎñÆ÷·¢À´µÄ¸üĞÂĞÅÏ¢²¢²åÈëµ½×Ü±í
+			if((pid2=fork())<0)
+				perror("child process 2 fork error");
+			else if(pid2==0)  //child child process 2
+				ListenForTableUpdate();
+				else    //parent
+				{
+					//Ö÷½ø³Ì´´½¨ÈıÏß³Ì
+					sleep(2);
+					//´´½¨Ïß³Ì1£¬¸üĞÂ±¾µØÊı¾İ¿â¡£Ê¹ÓÃÉú³ÉËæ»úÊıµÄ·½Ê½£¬Ä£Äâ¹âÅÌÏ»Î»ÖÃµÄ±ä¶¯£¬Êµ¼ÊÊ¹ÓÃÊ±£¬ĞèÊ¹ÓÃRFIDµÃµ½µÄĞÅÏ¢
+					pthread_create(&tid[0],NULL,UpdateMysqlTable,NULL);
+					//´´½¨Ïß³Ì2£¬½«¸üĞÂµÄÊı¾İ¿âĞÅÏ¢·¢ËÍ¸øÖ÷·şÎñÆ÷
+					pthread_create(&tid[1],NULL,SendMysqlUpdate,NULL);
+					//´´½¨Ïß³Ì3,¹ã²¥Ö÷·şÎñÆ÷×Ô¼ºµÄ´æ»îĞÅÏ¢
+					pthread_create(&tid[2],NULL,boardserver,NULL);
+					while(1)
+					{
+						memset(pkt_exist,0,MAX_CABINET_NUM*sizeof(PKT_EXIST));
+						timeout=0;
+						if(SIG_ERR==(signal(SIGALRM,sig_alrm)))
+							perror("alarm error");
+						//ÉèÖÃ¶¨Ê±Æ÷
+						alarm(5);
+						//¼àÌı¹ã²¥ĞÅÏ¢²¢±£´æ
+						listen_board();
+						//½«²»´æ»îµÄ´Ó·şÎñÆ÷ÔÚÖ÷·şÎñÆ÷ÖĞµÄÊı¾İÉ¾³ı
+						DealSlaveServer();
+					}
+				}
 		}
-	}
 }
+
+//ÏòÖ÷·şÎñÆ÷·¢ËÍ×Ô¼ºµÄÕû¸öÊı¾İ¿â±í
 void SendLocalTable()
 {
 	int sockfd;
 	DealPipe();
-	sockfd=InitUpdateServer(TCP_PORT1);
+	//³õÊ¼»¯·¢ËÍTCP
+	sockfd=InitSlaveServerTCP(TCP_PORT1);
 	if(sockfd<0)
 		printf("socket num error\n");
+	//½«È«¾Ö±äÁ¿pkt_sendÖĞµÄÕû¸öÊı¾İ¿â±íĞÅÏ¢·¢ËÍ¸øÖ÷·şÎñÆ÷
 	if(send(sockfd,&pkt_send,sizeof(pkt_send),0)<0)
 	{
 		perror("tcp_client send message error");
 	}
 	close(sockfd);
 }
+
+//´Ó·şÎñÆ÷Ä£¿é
 void ServeAsSlaveServer()
 {
 	pthread_t tid[3];
 	int num;
+	//½«±¾µØÕû¸öÊı¾İ¿â±í´æµ½È«¾Ö±äÁ¿pkt_sendÖĞ
 	selecttable(LOCALCABINETID,SLAVETABLENAME);
+	//ÏòÖ÷·şÎñÆ÷·¢ËÍ×Ô¼ºµÄÕû¸öÊı¾İ¿â±í£¨´æ´¢ÔÚÈ«¾Ö±äÁ¿pkt_sendÖĞ£©
 	SendLocalTable();
+	
+	//´´½¨Ïß³Ì1£¬¸üĞÂ±¾µØÊı¾İ¿â¡£Ê¹ÓÃÉú³ÉËæ»úÊıµÄ·½Ê½£¬Ä£Äâ¹âÅÌÏ»Î»ÖÃµÄ±ä¶¯£¬Êµ¼ÊÊ¹ÓÃÊ±£¬ĞèÊ¹ÓÃRFIDµÃµ½µÄĞÅÏ¢
 	pthread_create(&tid[0],NULL,UpdateMysqlTable,NULL);
+	//´´½¨Ïß³Ì2£¬½«¸üĞÂµÄÊı¾İ¿âĞÅÏ¢·¢ËÍ¸øÖ÷·şÎñÆ÷
 	pthread_create(&tid[1],NULL,SendMysqlUpdate,NULL);
+	//´´½¨Ïß³Ì3,¹ã²¥Ö÷·şÎñÆ÷×Ô¼ºµÄ´æ»îĞÅÏ¢
 	pthread_create(&tid[2],NULL,boardserver,NULL);
 	while(1)
 	{
@@ -392,9 +466,13 @@ void ServeAsSlaveServer()
 		timeout=0;
 		if(SIG_ERR==(signal(SIGALRM,sig_alrm)))
 		perror("alarm error");
+		//ÉèÖÃ¶¨Ê±Æ÷
 		alarm(5);
+		//¼àÌı¹ã²¥ĞÅÏ¢²¢±£´æ
 		listen_board();
+		//ÅĞ¶ÏÖ÷·şÎñÆ÷ÊÇ·ñ´æÔÚ
 		ismainexist();
+		//Èç¹ûÖ÷·şÎñÆ÷²»´æÔÚ£¬È¡ÏûÈıÏß³Ì£¬º¯Êı·µ»Ø
 		if(!mainserflag)
 		{
 			for(num=0;num<3;num++)

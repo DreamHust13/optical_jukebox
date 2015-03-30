@@ -1,4 +1,4 @@
-#ifndef  INCLUDE_MYSQL_H
+﻿#ifndef  INCLUDE_MYSQL_H
 #define INCLUDE_MYSQL_H
 #include<stdio.h>
 #include<string.h>
@@ -16,10 +16,9 @@
 #define MAXROW   8
 #define MAXCOLUMN  30
 
-//#define MAINSERVERIP  "192.168.1.2"
 MYSQL mysql;
 int  updateflag;
-pthread_mutex_t  mutex;
+//pthread_mutex_t  mutex;//最后未使用
 //function
 int mysqlinit();
 void selecttable(int cabinetid,const char *tbname);

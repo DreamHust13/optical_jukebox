@@ -2,17 +2,25 @@
 #include"mysocket_data.h"
 #include"tcp_server.h"
 #include"Mysql.h"
-int  InitServer(const int port)
+
+//初始化主服务器端的TCP连接(原名InitServer)
+int  InitMainServerTCP(const int port)
 {
 	int sockfd;
 	SOCKADDR_IN addrSrv;
 	int len=sizeof(SOCKADDR_IN);
 	int reuse=1;
+	bzero(&addrSrv,sizeof(addrSrv));
 	addrSrv.sin_addr.s_addr=INADDR_ANY;
 	addrSrv.sin_family=AF_INET;
 	addrSrv.sin_port=htons(port);
-	//璁剧疆TCP澶嶇敤
+	//设置TCP复用
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
+	if(sockfd<0)
+	{
+		perror("tcp main socket error");
+		return -1;
+	}
 	if(setsockopt(sockfd,SOL_SOCKET,SO_REUSEADDR,&reuse,sizeof(int))<0)
 	{
 		fprintf(stderr,"set sock option error\n");
@@ -20,16 +28,18 @@ int  InitServer(const int port)
 	}
 	if(bind(sockfd,(SOCKADDR *)&addrSrv,len)<0)
 	{
-		fprintf(stderr,"tcp bind error\n");
+		perror("Main server tcp bind error\n");
 		return -1;
 	}
 	if(listen(sockfd,MLEN)<0)
 	{
-		fprintf(stderr,"tcp listen error\n");
+		perror("Main server tcp listen error\n");
 		return -1;
 	}
 	return sockfd;
 }
+
+//将TCP收到的整张从服务器数据库表插入总表
 void *ServeForSlaveServer(void *arg)
 {
 
@@ -41,24 +51,25 @@ void *ServeForSlaveServer(void *arg)
 	ret=recv(sockfd,(char *)&pkt_recv,sizeof(pkt_recv),MSG_WAITALL);
 	if(ret<0)
 	{
-		perror("client quid");
+		perror("client quit");
 		close(sockfd);
 		return ;
 	}
 	else
 	{
-
-//鏀癸細涓嶇敤杈撳嚭
+//改：不用输出
 		printf("The table count received from cabinet %d is %d\n\n",pkt_recv.data[0].cabinetid,pkt_recv.count);
 		for(num=0;num<pkt_recv.count;num++)
 		{
 		insertable(pkt_recv.data[num].caddyid,pkt_recv.data[num].row,pkt_recv.data[num].coolumn,pkt_recv.data[num].cabinetid,MAINTABLENAME);
 		}
-		printf("宸叉彃鍏ワ細%d\n\n",num);
+		printf("已向总表插入：%d\n\n",num);
 	}
 	close(sockfd);
 }
-int InitUpdateMainServer(const int port)
+
+//与InitServer()函数合并，改为InitMainServerTCP()
+/* int InitUpdateMainServer(const int port)
 {
 	int sockfd;
 	SOCKADDR_IN  addr;
@@ -80,8 +91,10 @@ int InitUpdateMainServer(const int port)
 	if(listen(sockfd,MLEN)<0)
 		perror("tcp listen error");
 	return sockfd;
-}
-int InitUpdateServer(const int port)
+} */
+
+//初始化从服务器端的TCP连接(原名InitUpdateServer)
+int InitSlaveServerTCP(const int port)
 {
 	int socktd;
 	SOCKADDR_IN  desaddr;
@@ -104,13 +117,15 @@ int InitUpdateServer(const int port)
 	return socktd;
 }
 
-void  SendUpdateData(int sock)
+//发送更新数据的实际操作
+//删掉了，并不需要
+/* void  SendUpdateData(int sock)
 {
 	if(send(sock,&pkt_update,sizeof(pkt_update),0)<0)
 	{
 		perror("send msg failed");
 		close(sock);
 	}
-}
+} */
 
 
