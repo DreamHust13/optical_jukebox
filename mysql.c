@@ -38,7 +38,7 @@ void  selecttable(int cabinetid,const char *tbname)
 			else
 				pkt_send.data[num].coolumn=(line[2][0]-48)*10+(line[2][1]-48);
 			pkt_send.data[num].cabinetid=line[3][0]-48;
-//žÄ£ºÎÞÐèŽòÓ¡				printf("%s %d %d %d\n",pkt_send.data[num].caddyid,pkt_send.data[num].row,pkt_send.data[num].coolumn,pkt_send.data[num].cabinetid);
+//				printf("%s %d %d %d\n",pkt_send.data[num].caddyid,pkt_send.data[num].row,pkt_send.data[num].coolumn,pkt_send.data[num].cabinetid);
 			num++;
 		}
 		mysql_free_result(result);
@@ -151,7 +151,7 @@ int updatetable(const char *caddyid,int row,int coolumn,int cabinetid,const char
 }
 int real_operate(const char *query)
 {
-//žÄ£ºŒÓ
+//初始化
 	MYSQL_RES *result=NULL;
 //	pthread_mutex_lock(&mutex);
 	if(mysql_real_query(&mysql,query,strlen(query)))

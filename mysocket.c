@@ -90,8 +90,8 @@ int  listen_board()
 	{
 		if(timeout)
 			return num;
-		//”π„≤•µÿ÷∑Ω” ‹œ˚œ?
-//		printf("timeout = %d",timeout);
+
+		//		printf("timeout = %d",timeout);
 		ret=recvfrom(sock,&pkt_server,sizeof(pkt_server), 0, (struct sockaddr*)&from,(socklen_t*)&len);
 		if(ret < 0)
 		{
