@@ -64,7 +64,8 @@ void *boardserver()
 		ret=sendto(sock,&pkt_server, sizeof(pkt_server), 0, (struct sockaddr*)&board_sockaddr, nlen);
 		if(ret<0)
 			fprintf(stderr,"send error....\n");
-		sleep(1);
+		usleep(200000);//200000Î¢Ãî¼´200ºÁÃë¹ã²¥Ò»´Î
+		//sleep(1);
 	}
 }
 

@@ -4,9 +4,11 @@
 #include"mysocket_data.h"
 #include"tcp_server.h"
 #include <string.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 extern void *boardserver();
-int mainserflag=0;//Ö÷·şÎñÆ÷´æÔÚ±êÖ¾
+int mainserflag=0;//ä¸»æœåŠ¡å™¨å­˜åœ¨æ ‡å¿—
 void ServeAsMainServer();
 int CompeteForMainServer();
 void ServeAsSlaveServer();
@@ -14,7 +16,7 @@ void setmainip(const char *IP);
 void setlocalip();
 void *SendMysqlUpdate();
 
-//ÅĞ¶ÏÖ÷·şÎñÆ÷ÊÇ·ñ´æÔÚ
+//åˆ¤æ–­ä¸»æœåŠ¡å™¨æ˜¯å¦å­˜åœ¨
 void ismainexist()
 {
 	int num=0;
@@ -34,8 +36,8 @@ void ismainexist()
 
 static void DealPipe()
 {
-//³ÌĞòÔËĞĞ¹ı³ÌÖĞ£¬»áÓöµ½ĞÅºÅSIGPIPE¡£µ±ÏòÒÑ¹Ø±ÕµÄSOCK_STREAMÌ×½Ó×ÖÊ±£¬»á·¢ËÍ¸ÃĞÅºÅ
-//×èÈû¸ÃĞÅºÅ£¬²»½«ÆäµİËÍ¸ø½ø³ÌµÄĞÅºÅ¼¯£ºÔÚÏß³ÌÖĞĞèÒªÊ¹ÓÃpthread_sigmaskº¯Êı
+//ç¨‹åºè¿è¡Œè¿‡ç¨‹ä¸­ï¼Œä¼šé‡åˆ°ä¿¡å·SIGPIPEã€‚å½“å‘å·²å…³é—­çš„SOCK_STREAMå¥—æ¥å­—æ—¶ï¼Œä¼šå‘é€è¯¥ä¿¡å·
+//é˜»å¡è¯¥ä¿¡å·ï¼Œä¸å°†å…¶é€’é€ç»™è¿›ç¨‹çš„ä¿¡å·é›†ï¼šåœ¨çº¿ç¨‹ä¸­éœ€è¦ä½¿ç”¨pthread_sigmaskå‡½æ•°
 	sigset_t signal_mask;
 	sigemptyset(&signal_mask);
 	sigaddset(&signal_mask,SIGPIPE);
@@ -44,7 +46,7 @@ static void DealPipe()
 		printf("block sigpipe error\n");
 }
 
-//¶¨Ê±Æ÷Ê±¼äµ½Ê±µÄĞÅºÅ´¦Àíº¯Êı
+//å®šæ—¶å™¨æ—¶é—´åˆ°æ—¶çš„ä¿¡å·å¤„ç†å‡½æ•°
 static void sig_alrm(int signo)
 {
 	timeout=1;
@@ -53,15 +55,15 @@ static void sig_alrm(int signo)
 	
 int main()
 {
-//¸Ä
-	int flag=0;//Ö÷»úÊÇ·ñÎªÖ÷·şÎñÆ÷µÄ±êÖ¾
-//³õÊ¼»¯
-	//È«¾Ö±äÁ¿´æ´¢ÊÕÌıµ½µÄ¹ã²¥ĞÅÏ¢
+//æ”¹
+	int flag=0;//ä¸»æœºæ˜¯å¦ä¸ºä¸»æœåŠ¡å™¨çš„æ ‡å¿—
+//åˆå§‹åŒ–
+	//å…¨å±€å˜é‡å­˜å‚¨æ”¶å¬åˆ°çš„å¹¿æ’­ä¿¡æ¯
 	memset(pkt_exist,0,MAX_CABINET_NUM*sizeof(PKT_EXIST));
 	timeout=0;
 	mysqlinit();
-//	pthread_mutex_init(&mutex,NULL);//×îºóÃ»ÓĞÊ¹ÓÃ
-	setmainip(LOCALHOST);//µ÷ÊÔ³ÌĞòÊ¹ÓÃ£¬½«Ä£ÄâÖÕÖ¹µÄÖ÷»úipµØÖ·ÉèÎªÔ­µØÖ·£¬×îÖÕ²»Ó¦¸ÃÓĞ´ËÓï¾ä¡£
+//	pthread_mutex_init(&mutex,NULL);//æœ€åæ²¡æœ‰ä½¿ç”¨
+	setmainip(LOCALHOST);//è°ƒè¯•ç¨‹åºä½¿ç”¨ï¼Œå°†æ¨¡æ‹Ÿç»ˆæ­¢çš„ä¸»æœºipåœ°å€è®¾ä¸ºåŸåœ°å€ï¼Œæœ€ç»ˆä¸åº”è¯¥æœ‰æ­¤è¯­å¥ã€‚
 	if(Udp_board_init()==-1)
 	{
 		fprintf(stderr,"socket init error\n");
@@ -77,7 +79,14 @@ int main()
 		fprintf(stderr,"sigaction error\n");
 		return -1;
 	}
-	alarm(5);
+	struct itimerval timeset;//è®¾ç½®å®šæ—¶å™¨çš„æ—¶é—´
+	timeset.it_interval.tv_sec = 0;
+	timeset.it_interval.tv_usec = 0;
+	timeset.it_value.tv_sec = 0;
+	timeset.it_value.tv_usec = 400000;//è®¾ç½®å®šæ—¶å™¨ä¸º400ms
+	if(-1 == setitimer(ITIMER_REAL,&timeset,NULL))
+		perror("Setitimer error");
+	//alarm(5);
 	if(signal(SIGINT,setlocalip))
 	{
 		fprintf(stderr,"signal for Ctrl+C error\n");
@@ -105,7 +114,7 @@ int main()
 	return 0;
 }
 
-//ÅĞ¶Ï±¾»úIPÊÇ·ñÎª×îĞ¡IP
+//åˆ¤æ–­æœ¬æœºIPæ˜¯å¦ä¸ºæœ€å°IP
 int IsIPSminimum()
 {
 	int i=0;
@@ -123,12 +132,12 @@ int IsIPSminimum()
 		i++;
 	}
 	if(0==strcmp(LOCALHOST,minip))
-		return 1;//ÊÇ×îĞ¡IP£¬¾ºÑ¡³É¹¦Ö÷·şÎñÆ÷
+		return 1;//æ˜¯æœ€å°IPï¼Œç«é€‰æˆåŠŸä¸»æœåŠ¡å™¨
 	else
-		return 0;//²»ÊÇ×îĞ¡IP£¬¾ºÑ¡Ê§°Ü
+		return 0;//ä¸æ˜¯æœ€å°IPï¼Œç«é€‰å¤±è´¥
 }
 
-//ĞŞ¸ÄÎª·µ»ØÊÇ·ñ¾ºÑ¡³É¹¦£º1±íÊ¾³É¹¦£¬0±íÊ¾Ê§°Ü
+//ä¿®æ”¹ä¸ºè¿”å›æ˜¯å¦ç«é€‰æˆåŠŸï¼š1è¡¨ç¤ºæˆåŠŸï¼Œ0è¡¨ç¤ºå¤±è´¥
 int CompeteForMainServer()
 {
 	int flag=0;
@@ -140,12 +149,19 @@ int CompeteForMainServer()
 	{
 		fprintf(stderr,"sig_arm error\n");
 	}
-	alarm(4);
+//	alarm(4);
+	struct itimerval timeset;//è®¾ç½®å®šæ—¶å™¨çš„æ—¶é—´
+	timeset.it_interval.tv_sec = 0;
+	timeset.it_interval.tv_usec = 0;
+	timeset.it_value.tv_sec = 0;
+	timeset.it_value.tv_usec = 400000;//è®¾ç½®å®šæ—¶å™¨ä¸º400000us
+	if(-1 == setitimer(ITIMER_REAL,&timeset,NULL))
+		perror("Setitimer error");
 //	Udp_board_init();
 	listen_board();
 	pthread_cancel(tid);
 	flag=IsIPSminimum();
-//ÒÔÏÂÎªĞŞ¸Ä£º
+//ä»¥ä¸‹ä¸ºä¿®æ”¹ï¼š
 //	if(flag)
 //		ServeAsMainServer();
 //	else
@@ -153,7 +169,7 @@ int CompeteForMainServer()
 	return flag;
 }
 
-//½«±¾»úµØÖ·ÉèÖÃÎªÖ÷·şÎñÆ÷µØÖ·
+//å°†æœ¬æœºåœ°å€è®¾ç½®ä¸ºä¸»æœåŠ¡å™¨åœ°å€
 void setmainip(const char *IP)
 {
 	char cmd[100];
@@ -163,7 +179,7 @@ void setmainip(const char *IP)
 //	system("sudo ifdown eth0;sudo ifup eth0");
 }
 
-//½«±¾»úµØÖ·ÉèÖÃÎªĞŞ¸ÄÇ°µØÖ·£¬ÓÃÓÚµ÷ÊÔÊ¹ÓÃ£¬ÕıÊ½°æ±¾²»ĞèÒª
+//å°†æœ¬æœºåœ°å€è®¾ç½®ä¸ºä¿®æ”¹å‰åœ°å€ï¼Œç”¨äºè°ƒè¯•ä½¿ç”¨ï¼Œæ­£å¼ç‰ˆæœ¬ä¸éœ€è¦
 void setlocalip()
 {
 	char cmd[100];
@@ -174,20 +190,20 @@ void setlocalip()
 //	system("sudo ifdown eth0;sudo ifup eth0");
 }
 
-//½ÓÊÕ´Ó·şÎñÆ÷·¢À´µÄÕû¸öÊı¾İ¿â±í
+//æ¥æ”¶ä»æœåŠ¡å™¨å‘æ¥çš„æ•´ä¸ªæ•°æ®åº“è¡¨
 void ListenForAllTable()
 {
-	//³õÊ¼»¯½ÓÊÕTCPÁ¬½Ó
+	//åˆå§‹åŒ–æ¥æ”¶TCPè¿æ¥
 	int sockfd=InitMainServerTCP(TCP_PORT1);
 	pthread_t tid[MLEN];
 	int ret;
-	int clfd[MLEN]£»//Ã¿¸öÁ¬½Ó¶ÔÓ¦µÄÌ×½Ó×ÖÊı×é
+	int clfd[MLEN];//æ¯ä¸ªè¿æ¥å¯¹åº”çš„å¥—æ¥å­—æ•°ç»„
 	int count=0;
 	puts("now the main server process 1 is working");
 	while(1)
 	{
 		{
-			//clfd[count]Îª´Ë´ÎÁ¬½Ó¶ÔÓ¦µÄÌ×½Ó×Ö
+			//clfd[count]ä¸ºæ­¤æ¬¡è¿æ¥å¯¹åº”çš„å¥—æ¥å­—
 			clfd[count]=accept(sockfd,NULL,NULL);
 			if(clfd[count]==-1)
 			{
@@ -195,7 +211,7 @@ void ListenForAllTable()
 				close(sockfd);
 				perror("accept error\n");
 			}
-			//ÎªÃ¿Ò»¸öÁ¬½Ó½¨Á¢Ò»¸öÏß³Ì£¬´¦ÀíÆä·¢À´µÄÊı¾İ¿â±í
+			//ä¸ºæ¯ä¸€ä¸ªè¿æ¥å»ºç«‹ä¸€ä¸ªçº¿ç¨‹ï¼Œå¤„ç†å…¶å‘æ¥çš„æ•°æ®åº“è¡¨
 			ret=pthread_create(&tid[count],NULL,ServeForSlaveServer,(void *)&clfd[count]);
 			if(ret!=0)
 			{
@@ -210,26 +226,26 @@ void ListenForAllTable()
 	}
 }
 
-//Ä£Äâ¹âÅÌÏ»Î»ÖÃ±ä¶¯
+//æ¨¡æ‹Ÿå…‰ç›˜åŒ£ä½ç½®å˜åŠ¨
 void rand_num()
 {
 	int  caddyid;
 	srand((int)time(NULL));
 	memset(&pkt_update,0,sizeof(pkt_update));
-	caddyid=rand()%255;
+	caddyid=rand()%25-1;
 	sprintf(pkt_update.caddyid,"%d",caddyid);
 	pkt_update.row=rand()%MAXROW;
 	pkt_update.coolumn=rand()%MAXCOLUMN;
 	pkt_update.cabinetid=LOCALCABINETID;
-//¸Ä£º²»Êä³öËæ»úĞŞ¸ÄÊı¾İ
+//æ”¹ï¼šä¸è¾“å‡ºéšæœºä¿®æ”¹æ•°æ®
 //printf("%d %d %d \n",caddyid,pkt_update.row,pkt_update.coolumn);
 }
 
-//½ÓÊÕ²¢´¦ÀíÊı¾İ¿â±íµÄ¸üĞÂ
+//æ¥æ”¶å¹¶å¤„ç†æ•°æ®åº“è¡¨çš„æ›´æ–°
 void *DealTableUpdate(void *arg)
 {
 	int clfd=*((int *)arg);
-//¸Ä£º²»Êä³ö
+//æ”¹ï¼šä¸è¾“å‡º
 //	printf("%d\n",clfd);
 	DealPipe();
 	PKT_UPDATE  pkt_recv;
@@ -237,7 +253,7 @@ void *DealTableUpdate(void *arg)
 	while(1)
 	{
 		ret=recv(clfd,&pkt_recv,sizeof(pkt_recv),0);
-//¸Ä£º²»ĞèÊä³ö
+//æ”¹ï¼šä¸éœ€è¾“å‡º
 //		printf("%d bytes receved\n",ret);
 		if(ret<=0)
 		{
@@ -249,7 +265,7 @@ void *DealTableUpdate(void *arg)
 	}
 }
 
-//½ÓÊÕ²¢´¦ÀíËùÓĞ´Ó·şÎñÆ÷·¢À´µÄÊı¾İ¿â±íµÄ¸üĞÂ
+//æ¥æ”¶å¹¶å¤„ç†æ‰€æœ‰ä»æœåŠ¡å™¨å‘æ¥çš„æ•°æ®åº“è¡¨çš„æ›´æ–°
 void ListenForTableUpdate()
 {
 	int sockfd=InitMainServerTCP(TCP_PORT2);
@@ -281,7 +297,7 @@ void ListenForTableUpdate()
 	}
 }
 
-//¸ù¾İÄ£ÄâµÄ¹âÅÌÏ»Î»ÖÃ±ä¶¯£¬¸üĞÂ±¾µØÊı¾İ¿â
+//æ ¹æ®æ¨¡æ‹Ÿçš„å…‰ç›˜åŒ£ä½ç½®å˜åŠ¨ï¼Œæ›´æ–°æœ¬åœ°æ•°æ®åº“
 void *UpdateMysqlTable()
 {
 	updateflag=0;
@@ -292,21 +308,21 @@ void *UpdateMysqlTable()
 		{
 			rand_num();
 			update(pkt_update.caddyid,pkt_update.row,pkt_update.coolumn,LOCALCABINETID,SLAVETABLENAME);
-//¸Ä£ºÎŞĞèÊä³ö	
+//æ”¹ï¼šæ— éœ€è¾“å‡º	
 //	printf(" main update (update local data) success\n");
 			updateflag=1;
-			sleep(1);
+			usleep(1000000);//1000000å¾®å¦™å³1000æ¯«ç§’æ›´æ–°ä¸€æ¬¡æ•°æ®
 		}
 	}
 }
 
-//Ã»ÓĞÓÃµ½
+//æ²¡æœ‰ç”¨åˆ°
 //static void deal_pipe()
 //{
 //	return ;
 //}
 
-//½¨Á¢TCPÁ¬½Ó£¬½«±¾µØ¸üĞÂÊı¾İ·¢¸øÖ÷·şÎñÆ÷
+//å»ºç«‹TCPè¿æ¥ï¼Œå°†æœ¬åœ°æ›´æ–°æ•°æ®å‘ç»™ä¸»æœåŠ¡å™¨
 void *SendMysqlUpdate()
 {
 	int sockfd;
@@ -321,21 +337,22 @@ void *SendMysqlUpdate()
 		{
 			if(updateflag)
 			{
-//²»ĞèÒªĞÂµÄº¯Êı
+//ä¸éœ€è¦æ–°çš„å‡½æ•°
 				//SendUpdateData(sockfd);//
-				if(send(sockfd,&pkt_update,sizeof(pkt_update),0)<0)//Îªsockfd¶ø·Çsock£¬ÇĞ¼Ç£¡¸ÄÁËµ÷ÓÃ£¬±ğÍüÁË¸Ä²ÎÊı£¡£¡£¡
+				if(send(sockfd,&pkt_update,sizeof(pkt_update),0)<0)//ä¸ºsockfdè€Œésockï¼Œåˆ‡è®°ï¼æ”¹äº†è°ƒç”¨ï¼Œåˆ«å¿˜äº†æ”¹å‚æ•°ï¼ï¼ï¼
 				{
 					perror("send msg failed");
 					close(sockfd);
 				}
 				updateflag=0;
-				sleep(1);
+				usleep(1000000);//1000000å¾®å¦™å³1000æ¯«ç§’å‘é€ä¸€æ¬¡æ›´æ–°ä¿¡æ¯
+				//sleep(1);
 			}
 		}
 	}
 }
 
-//½«²»´æ»îµÄ´Ó·şÎñÆ÷ÔÚÖ÷·şÎñÆ÷ÖĞµÄÊı¾İÉ¾³ı
+//å°†ä¸å­˜æ´»çš„ä»æœåŠ¡å™¨åœ¨ä¸»æœåŠ¡å™¨ä¸­çš„æ•°æ®åˆ é™¤
 void DealSlaveServer()
 {
 	int i;
@@ -344,7 +361,7 @@ void DealSlaveServer()
 	{
 		k=0;
 		flag=0;
-		//ÅĞ¶ÏÊÇ·ñ¼àÌıµ½´Ó·şÎñÆ÷iµÄ´æ»îĞÅÏ¢
+		//åˆ¤æ–­æ˜¯å¦ç›‘å¬åˆ°ä»æœåŠ¡å™¨içš„å­˜æ´»ä¿¡æ¯
 		while(1)
 		{
 			if(pkt_exist[k].status==0)
@@ -356,13 +373,13 @@ void DealSlaveServer()
 			}
 			k++;
 		}
-		if(flag==0)//Î´¼àÌıµ½£¬É¾³ı´Ó·şÎñÆ÷iÔÚÖ÷·şÎñÆ÷ÖĞµÄÊı¾İ
+		if(flag==0)//æœªç›‘å¬åˆ°ï¼Œåˆ é™¤ä»æœåŠ¡å™¨iåœ¨ä¸»æœåŠ¡å™¨ä¸­çš„æ•°æ®
 			deletetable("*",0,0,i,MAINTABLENAME);
 	}
 
 }
 
-//½«±¾µØÊı¾İ¿â±íÖĞµÄÊı¾İÍ¬²½µ½ËùÓĞ·şÎñÆ÷ĞÅÏ¢µÄ×Ü±íÖĞ
+//å°†æœ¬åœ°æ•°æ®åº“è¡¨ä¸­çš„æ•°æ®åŒæ­¥åˆ°æ‰€æœ‰æœåŠ¡å™¨ä¿¡æ¯çš„æ€»è¡¨ä¸­
 void SynLocalTable()
 {
 	int num=0;
@@ -372,42 +389,42 @@ void SynLocalTable()
 		insertable(pkt_send.data[num].caddyid,pkt_send.data[num].row,pkt_send.data[num].coolumn,pkt_send.data[num].cabinetid,MAINTABLENAME);
 }
 
-//Ö÷·şÎñÆ÷Ä£¿é
+//ä¸»æœåŠ¡å™¨æ¨¡å—
 void ServeAsMainServer()
 {
 	pid_t pid1,pid2;
 	pthread_t  tid[3];
 	
-//³õÊ¼»¯
-	//½«IPµØÖ·ÉèÖÃÎªÖ÷·şÎñÆ÷µØÖ·
+//åˆå§‹åŒ–
+	//å°†IPåœ°å€è®¾ç½®ä¸ºä¸»æœåŠ¡å™¨åœ°å€
 	setmainip(MAINSERVERIP);
-	//Çå¿Õ×Ü±í
+	//æ¸…ç©ºæ€»è¡¨
 	deletetable("*",0,0,-1,MAINTABLENAME);
-	//½«±¾µØ"×Ó»õ¼Ü±í"¸üĞÂÖÁ"×Ü»õ¼Ü±í"
+	//å°†æœ¬åœ°"å­è´§æ¶è¡¨"æ›´æ–°è‡³"æ€»è´§æ¶è¡¨"
 	SynLocalTable();
 	timeout=0;
 	
-	//´´½¨½ø³Ì1£¬½ÓÊÕ¸÷´Ó·şÎñÆ÷·¢À´µÄÕû¸öÊı¾İ¿â±íĞÅÏ¢²¢²åÈëµ½×Ü±í
+	//åˆ›å»ºè¿›ç¨‹1ï¼Œæ¥æ”¶å„ä»æœåŠ¡å™¨å‘æ¥çš„æ•´ä¸ªæ•°æ®åº“è¡¨ä¿¡æ¯å¹¶æ’å…¥åˆ°æ€»è¡¨
 	if((pid1=fork())<0)
 		perror("child process 1 fork error\n");
 	else if(pid1==0)//child  process 1
 		ListenForAllTable();
 		else
 		{
-			//´´½¨½ø³Ì2£¬½ÓÊÕ¸÷´Ó·şÎñÆ÷·¢À´µÄ¸üĞÂĞÅÏ¢²¢²åÈëµ½×Ü±í
+			//åˆ›å»ºè¿›ç¨‹2ï¼Œæ¥æ”¶å„ä»æœåŠ¡å™¨å‘æ¥çš„æ›´æ–°ä¿¡æ¯å¹¶æ’å…¥åˆ°æ€»è¡¨
 			if((pid2=fork())<0)
 				perror("child process 2 fork error");
 			else if(pid2==0)  //child child process 2
 				ListenForTableUpdate();
 				else    //parent
 				{
-					//Ö÷½ø³Ì´´½¨ÈıÏß³Ì
+					//ä¸»è¿›ç¨‹åˆ›å»ºä¸‰çº¿ç¨‹
 					sleep(2);
-					//´´½¨Ïß³Ì1£¬¸üĞÂ±¾µØÊı¾İ¿â¡£Ê¹ÓÃÉú³ÉËæ»úÊıµÄ·½Ê½£¬Ä£Äâ¹âÅÌÏ»Î»ÖÃµÄ±ä¶¯£¬Êµ¼ÊÊ¹ÓÃÊ±£¬ĞèÊ¹ÓÃRFIDµÃµ½µÄĞÅÏ¢
+					//åˆ›å»ºçº¿ç¨‹1ï¼Œæ›´æ–°æœ¬åœ°æ•°æ®åº“ã€‚ä½¿ç”¨ç”Ÿæˆéšæœºæ•°çš„æ–¹å¼ï¼Œæ¨¡æ‹Ÿå…‰ç›˜åŒ£ä½ç½®çš„å˜åŠ¨ï¼Œå®é™…ä½¿ç”¨æ—¶ï¼Œéœ€ä½¿ç”¨RFIDå¾—åˆ°çš„ä¿¡æ¯
 					pthread_create(&tid[0],NULL,UpdateMysqlTable,NULL);
-					//´´½¨Ïß³Ì2£¬½«¸üĞÂµÄÊı¾İ¿âĞÅÏ¢·¢ËÍ¸øÖ÷·şÎñÆ÷
+					//åˆ›å»ºçº¿ç¨‹2ï¼Œå°†æ›´æ–°çš„æ•°æ®åº“ä¿¡æ¯å‘é€ç»™ä¸»æœåŠ¡å™¨
 					pthread_create(&tid[1],NULL,SendMysqlUpdate,NULL);
-					//´´½¨Ïß³Ì3,¹ã²¥Ö÷·şÎñÆ÷×Ô¼ºµÄ´æ»îĞÅÏ¢
+					//åˆ›å»ºçº¿ç¨‹3,å¹¿æ’­ä¸»æœåŠ¡å™¨è‡ªå·±çš„å­˜æ´»ä¿¡æ¯
 					pthread_create(&tid[2],NULL,boardserver,NULL);
 					while(1)
 					{
@@ -415,27 +432,34 @@ void ServeAsMainServer()
 						timeout=0;
 						if(SIG_ERR==(signal(SIGALRM,sig_alrm)))
 							perror("alarm error");
-						//ÉèÖÃ¶¨Ê±Æ÷
-						alarm(5);
-						//¼àÌı¹ã²¥ĞÅÏ¢²¢±£´æ
+						//è®¾ç½®å®šæ—¶å™¨
+						//alarm(5);
+						struct itimerval timeset;//è®¾ç½®å®šæ—¶å™¨çš„æ—¶é—´
+						timeset.it_interval.tv_sec = 0;
+						timeset.it_interval.tv_usec = 0;
+						timeset.it_value.tv_sec = 0;
+						timeset.it_value.tv_usec = 300000;//è®¾ç½®å®šæ—¶å™¨ä¸º300ms
+						if(-1 == setitimer(ITIMER_REAL,&timeset,NULL))
+							perror("Setitimer error");
+						//ç›‘å¬å¹¿æ’­ä¿¡æ¯å¹¶ä¿å­˜
 						listen_board();
-						//½«²»´æ»îµÄ´Ó·şÎñÆ÷ÔÚÖ÷·şÎñÆ÷ÖĞµÄÊı¾İÉ¾³ı
+						//å°†ä¸å­˜æ´»çš„ä»æœåŠ¡å™¨åœ¨ä¸»æœåŠ¡å™¨ä¸­çš„æ•°æ®åˆ é™¤
 						DealSlaveServer();
 					}
 				}
 		}
 }
 
-//ÏòÖ÷·şÎñÆ÷·¢ËÍ×Ô¼ºµÄÕû¸öÊı¾İ¿â±í
+//å‘ä¸»æœåŠ¡å™¨å‘é€è‡ªå·±çš„æ•´ä¸ªæ•°æ®åº“è¡¨
 void SendLocalTable()
 {
 	int sockfd;
 	DealPipe();
-	//³õÊ¼»¯·¢ËÍTCP
+	//åˆå§‹åŒ–å‘é€TCP
 	sockfd=InitSlaveServerTCP(TCP_PORT1);
 	if(sockfd<0)
 		printf("socket num error\n");
-	//½«È«¾Ö±äÁ¿pkt_sendÖĞµÄÕû¸öÊı¾İ¿â±íĞÅÏ¢·¢ËÍ¸øÖ÷·şÎñÆ÷
+	//å°†å…¨å±€å˜é‡pkt_sendä¸­çš„æ•´ä¸ªæ•°æ®åº“è¡¨ä¿¡æ¯å‘é€ç»™ä¸»æœåŠ¡å™¨
 	if(send(sockfd,&pkt_send,sizeof(pkt_send),0)<0)
 	{
 		perror("tcp_client send message error");
@@ -443,21 +467,21 @@ void SendLocalTable()
 	close(sockfd);
 }
 
-//´Ó·şÎñÆ÷Ä£¿é
+//ä»æœåŠ¡å™¨æ¨¡å—
 void ServeAsSlaveServer()
 {
 	pthread_t tid[3];
 	int num;
-	//½«±¾µØÕû¸öÊı¾İ¿â±í´æµ½È«¾Ö±äÁ¿pkt_sendÖĞ
+	//å°†æœ¬åœ°æ•´ä¸ªæ•°æ®åº“è¡¨å­˜åˆ°å…¨å±€å˜é‡pkt_sendä¸­
 	selecttable(LOCALCABINETID,SLAVETABLENAME);
-	//ÏòÖ÷·şÎñÆ÷·¢ËÍ×Ô¼ºµÄÕû¸öÊı¾İ¿â±í£¨´æ´¢ÔÚÈ«¾Ö±äÁ¿pkt_sendÖĞ£©
+	//å‘ä¸»æœåŠ¡å™¨å‘é€è‡ªå·±çš„æ•´ä¸ªæ•°æ®åº“è¡¨ï¼ˆå­˜å‚¨åœ¨å…¨å±€å˜é‡pkt_sendä¸­ï¼‰
 	SendLocalTable();
 	
-	//´´½¨Ïß³Ì1£¬¸üĞÂ±¾µØÊı¾İ¿â¡£Ê¹ÓÃÉú³ÉËæ»úÊıµÄ·½Ê½£¬Ä£Äâ¹âÅÌÏ»Î»ÖÃµÄ±ä¶¯£¬Êµ¼ÊÊ¹ÓÃÊ±£¬ĞèÊ¹ÓÃRFIDµÃµ½µÄĞÅÏ¢
+	//åˆ›å»ºçº¿ç¨‹1ï¼Œæ›´æ–°æœ¬åœ°æ•°æ®åº“ã€‚ä½¿ç”¨ç”Ÿæˆéšæœºæ•°çš„æ–¹å¼ï¼Œæ¨¡æ‹Ÿå…‰ç›˜åŒ£ä½ç½®çš„å˜åŠ¨ï¼Œå®é™…ä½¿ç”¨æ—¶ï¼Œéœ€ä½¿ç”¨RFIDå¾—åˆ°çš„ä¿¡æ¯
 	pthread_create(&tid[0],NULL,UpdateMysqlTable,NULL);
-	//´´½¨Ïß³Ì2£¬½«¸üĞÂµÄÊı¾İ¿âĞÅÏ¢·¢ËÍ¸øÖ÷·şÎñÆ÷
+	//åˆ›å»ºçº¿ç¨‹2ï¼Œå°†æ›´æ–°çš„æ•°æ®åº“ä¿¡æ¯å‘é€ç»™ä¸»æœåŠ¡å™¨
 	pthread_create(&tid[1],NULL,SendMysqlUpdate,NULL);
-	//´´½¨Ïß³Ì3,¹ã²¥Ö÷·şÎñÆ÷×Ô¼ºµÄ´æ»îĞÅÏ¢
+	//åˆ›å»ºçº¿ç¨‹3,å¹¿æ’­ä¸»æœåŠ¡å™¨è‡ªå·±çš„å­˜æ´»ä¿¡æ¯
 	pthread_create(&tid[2],NULL,boardserver,NULL);
 	while(1)
 	{
@@ -466,13 +490,20 @@ void ServeAsSlaveServer()
 		timeout=0;
 		if(SIG_ERR==(signal(SIGALRM,sig_alrm)))
 		perror("alarm error");
-		//ÉèÖÃ¶¨Ê±Æ÷
-		alarm(5);
-		//¼àÌı¹ã²¥ĞÅÏ¢²¢±£´æ
+		//è®¾ç½®å®šæ—¶å™¨
+		struct itimerval timeset;//è®¾ç½®å®šæ—¶å™¨çš„æ—¶é—´
+		timeset.it_interval.tv_sec = 0;
+		timeset.it_interval.tv_usec = 0;
+		timeset.it_value.tv_sec = 0;
+		timeset.it_value.tv_usec = 400000;//è®¾ç½®å®šæ—¶å™¨ä¸º400ms
+		if(-1 == setitimer(ITIMER_REAL,&timeset,NULL))
+			perror("Setitimer error");
+		//alarm(5);
+		//ç›‘å¬å¹¿æ’­ä¿¡æ¯å¹¶ä¿å­˜
 		listen_board();
-		//ÅĞ¶ÏÖ÷·şÎñÆ÷ÊÇ·ñ´æÔÚ
+		//åˆ¤æ–­ä¸»æœåŠ¡å™¨æ˜¯å¦å­˜åœ¨
 		ismainexist();
-		//Èç¹ûÖ÷·şÎñÆ÷²»´æÔÚ£¬È¡ÏûÈıÏß³Ì£¬º¯Êı·µ»Ø
+		//å¦‚æœä¸»æœåŠ¡å™¨ä¸å­˜åœ¨ï¼Œå–æ¶ˆä¸‰çº¿ç¨‹ï¼Œå‡½æ•°è¿”å›
 		if(!mainserflag)
 		{
 			for(num=0;num<3;num++)

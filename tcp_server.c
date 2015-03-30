@@ -1,9 +1,9 @@
-#include"mysocket.h"
+ï»¿#include"mysocket.h"
 #include"mysocket_data.h"
 #include"tcp_server.h"
 #include"Mysql.h"
 
-//³õÊ¼»¯Ö÷·şÎñÆ÷¶ËµÄTCPÁ¬½Ó(Ô­ÃûInitServer)
+//åˆå§‹åŒ–ä¸»æœåŠ¡å™¨ç«¯çš„TCPè¿æ¥(åŸåInitServer)
 int  InitMainServerTCP(const int port)
 {
 	int sockfd;
@@ -14,7 +14,7 @@ int  InitMainServerTCP(const int port)
 	addrSrv.sin_addr.s_addr=INADDR_ANY;
 	addrSrv.sin_family=AF_INET;
 	addrSrv.sin_port=htons(port);
-	//ÉèÖÃTCP¸´ÓÃ
+	//è®¾ç½®TCPå¤ç”¨
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
 	if(sockfd<0)
 	{
@@ -39,7 +39,7 @@ int  InitMainServerTCP(const int port)
 	return sockfd;
 }
 
-//½«TCPÊÕµ½µÄÕûÕÅ´Ó·şÎñÆ÷Êı¾İ¿â±í²åÈë×Ü±í
+//å°†TCPæ”¶åˆ°çš„æ•´å¼ ä»æœåŠ¡å™¨æ•°æ®åº“è¡¨æ’å…¥æ€»è¡¨
 void *ServeForSlaveServer(void *arg)
 {
 
@@ -57,18 +57,18 @@ void *ServeForSlaveServer(void *arg)
 	}
 	else
 	{
-//¸Ä£º²»ÓÃÊä³ö
+//æ”¹ï¼šä¸ç”¨è¾“å‡º
 		printf("The table count received from cabinet %d is %d\n\n",pkt_recv.data[0].cabinetid,pkt_recv.count);
 		for(num=0;num<pkt_recv.count;num++)
 		{
 		insertable(pkt_recv.data[num].caddyid,pkt_recv.data[num].row,pkt_recv.data[num].coolumn,pkt_recv.data[num].cabinetid,MAINTABLENAME);
 		}
-		printf("ÒÑÏò×Ü±í²åÈë£º%d\n\n",num);
+		printf("å·²å‘æ€»è¡¨æ’å…¥ï¼š%d\n\n",num);
 	}
 	close(sockfd);
 }
 
-//ÓëInitServer()º¯ÊıºÏ²¢£¬¸ÄÎªInitMainServerTCP()
+//ä¸InitServer()å‡½æ•°åˆå¹¶ï¼Œæ”¹ä¸ºInitMainServerTCP()
 /* int InitUpdateMainServer(const int port)
 {
 	int sockfd;
@@ -93,7 +93,7 @@ void *ServeForSlaveServer(void *arg)
 	return sockfd;
 } */
 
-//³õÊ¼»¯´Ó·şÎñÆ÷¶ËµÄTCPÁ¬½Ó(Ô­ÃûInitUpdateServer)
+//åˆå§‹åŒ–ä»æœåŠ¡å™¨ç«¯çš„TCPè¿æ¥(åŸåInitUpdateServer)
 int InitSlaveServerTCP(const int port)
 {
 	int socktd;
@@ -117,8 +117,8 @@ int InitSlaveServerTCP(const int port)
 	return socktd;
 }
 
-//·¢ËÍ¸üĞÂÊı¾İµÄÊµ¼Ê²Ù×÷
-//É¾µôÁË£¬²¢²»ĞèÒª
+//å‘é€æ›´æ–°æ•°æ®çš„å®é™…æ“ä½œ
+//åˆ æ‰äº†ï¼Œå¹¶ä¸éœ€è¦
 /* void  SendUpdateData(int sock)
 {
 	if(send(sock,&pkt_update,sizeof(pkt_update),0)<0)

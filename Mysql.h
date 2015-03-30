@@ -13,8 +13,8 @@
 #define LOCALHOST  "192.168.1.35"
 #define MAINSERVERIP  "192.168.1.2"
 #define LOCALCABINETID  5
-#define MAXROW   8
-#define MAXCOLUMN  30
+#define MAXROW   4
+#define MAXCOLUMN  4
 
 MYSQL mysql;
 int  updateflag;
