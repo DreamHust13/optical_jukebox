@@ -1,9 +1,9 @@
-﻿#include"mysocket.h"
+#include"mysocket.h"
 #include"mysocket_data.h"
 #include"tcp_server.h"
 #include"Mysql.h"
 
-//初始化主服务器端的TCP连接(原名InitServer)
+//³õÊŒ»¯Ö÷·þÎñÆ÷¶ËµÄTCPÁ¬œÓ(Ô­ÃûInitServer)
 int  InitMainServerTCP(const int port)
 {
 	int sockfd;
@@ -14,7 +14,7 @@ int  InitMainServerTCP(const int port)
 	addrSrv.sin_addr.s_addr=INADDR_ANY;
 	addrSrv.sin_family=AF_INET;
 	addrSrv.sin_port=htons(port);
-	//设置TCP复用
+	//ÉèÖÃTCPžŽÓÃ
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
 	if(sockfd<0)
 	{
@@ -39,7 +39,7 @@ int  InitMainServerTCP(const int port)
 	return sockfd;
 }
 
-//将TCP收到的整张从服务器数据库表插入总表
+//œ«TCPÊÕµœµÄÕûÕÅŽÓ·þÎñÆ÷ÊýŸÝ¿â±í²åÈë×Ü±í
 void *ServeForSlaveServer(void *arg)
 {
 
@@ -57,18 +57,18 @@ void *ServeForSlaveServer(void *arg)
 	}
 	else
 	{
-//改：不用输出
+//žÄ£º²»ÓÃÊä³ö
 		printf("The table count received from cabinet %d is %d\n\n",pkt_recv.data[0].cabinetid,pkt_recv.count);
 		for(num=0;num<pkt_recv.count;num++)
 		{
 		insertable(pkt_recv.data[num].caddyid,pkt_recv.data[num].row,pkt_recv.data[num].coolumn,pkt_recv.data[num].cabinetid,MAINTABLENAME);
 		}
-		printf("已向总表插入：%d\n\n",num);
+		printf("已向总表插入%d\n\n",num);
 	}
 	close(sockfd);
 }
 
-//与InitServer()函数合并，改为InitMainServerTCP()
+//ÓëInitServer()º¯ÊýºÏ²¢£¬žÄÎªInitMainServerTCP()
 /* int InitUpdateMainServer(const int port)
 {
 	int sockfd;
@@ -93,7 +93,7 @@ void *ServeForSlaveServer(void *arg)
 	return sockfd;
 } */
 
-//初始化从服务器端的TCP连接(原名InitUpdateServer)
+//³õÊŒ»¯ŽÓ·þÎñÆ÷¶ËµÄTCPÁ¬œÓ(Ô­ÃûInitUpdateServer)
 int InitSlaveServerTCP(const int port)
 {
 	int socktd;
@@ -117,8 +117,8 @@ int InitSlaveServerTCP(const int port)
 	return socktd;
 }
 
-//发送更新数据的实际操作
-//删掉了，并不需要
+//·¢ËÍžüÐÂÊýŸÝµÄÊµŒÊ²Ù×÷
+//ÉŸµôÁË£¬²¢²»ÐèÒª
 /* void  SendUpdateData(int sock)
 {
 	if(send(sock,&pkt_update,sizeof(pkt_update),0)<0)

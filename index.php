@@ -28,8 +28,7 @@
    // print_r($libid);
    // echo "".$libid["cabinetid"]."号离线库<br>";
     //输出第一行列标题
-	//修改设置
-    echo "<table border='3' width=300 height=100><tr><td>&nbsp</td>";
+    echo "<table border='5' width=700 height=700><tr><td>&nbsp</td>";
 	//为方便显示，改为4行4列
     for($i=0; $i<4; $i++)
            echo "<td>".$i."列</td>";
@@ -51,9 +50,8 @@
 		            break;
               } 
        }  
-	if($flag==true)
-	//去掉匣号echo "<td><font color=green>匣号".$row["caddyid"]."</font></td>";
-		echo "<td><font color=green>".$row["caddyid"]."</font></td>";
+	   if($flag==true)
+		echo "<td><font color=green>匣号".$row["caddyid"]."</font></td>";
 	else
 		echo "<td>&nbsp</td>";
     }

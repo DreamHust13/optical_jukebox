@@ -10,12 +10,13 @@
     "localhost","root","123456","optical_jukebox"
 #define MAINTABLENAME  "main_caddy_address_map"
 #define SLAVETABLENAME  "slave_caddy_address_map"
-#define LOCALHOST  "192.168.1.35"
+#define LOCALHOST  "192.168.1.21"
 #define MAINSERVERIP  "192.168.1.2"
-#define LOCALCABINETID  5
+#define LOCALCABINETID  1
 #define MAXROW   4
-#define MAXCOLUMN  4
+#define MAXCOLUMN 4
 
+//#define MAINSERVERIP  "192.168.1.2"
 MYSQL mysql;
 int  updateflag;
 //pthread_mutex_t  mutex;//最后未使用
