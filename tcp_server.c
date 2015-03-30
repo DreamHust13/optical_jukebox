@@ -3,7 +3,7 @@
 #include"tcp_server.h"
 #include"Mysql.h"
 
-//³õÊŒ»¯Ö÷·þÎñÆ÷¶ËµÄTCPÁ¬œÓ(Ô­ÃûInitServer)
+//初始化主服务器端的TCP连接(原名InitServer)
 int  InitMainServerTCP(const int port)
 {
 	int sockfd;
@@ -14,7 +14,7 @@ int  InitMainServerTCP(const int port)
 	addrSrv.sin_addr.s_addr=INADDR_ANY;
 	addrSrv.sin_family=AF_INET;
 	addrSrv.sin_port=htons(port);
-	//ÉèÖÃTCPžŽÓÃ
+	//设置TCP复用
 	sockfd=socket(AF_INET,SOCK_STREAM,0);
 	if(sockfd<0)
 	{
@@ -39,7 +39,7 @@ int  InitMainServerTCP(const int port)
 	return sockfd;
 }
 
-//œ«TCPÊÕµœµÄÕûÕÅŽÓ·þÎñÆ÷ÊýŸÝ¿â±í²åÈë×Ü±í
+//将TCP接收到的整张从服务器数据库表插入总表
 void *ServeForSlaveServer(void *arg)
 {
 
@@ -57,7 +57,7 @@ void *ServeForSlaveServer(void *arg)
 	}
 	else
 	{
-//žÄ£º²»ÓÃÊä³ö
+//改：不用输出
 		printf("The table count received from cabinet %d is %d\n\n",pkt_recv.data[0].cabinetid,pkt_recv.count);
 		for(num=0;num<pkt_recv.count;num++)
 		{
@@ -68,7 +68,7 @@ void *ServeForSlaveServer(void *arg)
 	close(sockfd);
 }
 
-//ÓëInitServer()º¯ÊýºÏ²¢£¬žÄÎªInitMainServerTCP()
+//与InitServer()函数合并，改为InitMainServerTCP()
 /* int InitUpdateMainServer(const int port)
 {
 	int sockfd;
@@ -107,7 +107,7 @@ int connect_retry(int sockfd,const struct sockaddr *addr,socklen_t alen)
 	return -1;
 	
 }
-//³õÊŒ»¯ŽÓ·þÎñÆ÷¶ËµÄTCPÁ¬œÓ(Ô­ÃûInitUpdateServer)
+//初始化从服务器端的TCP连接(原名InitUpdateServer)
 int InitSlaveServerTCP(const int port)
 {
 	int socktd;
@@ -131,8 +131,8 @@ int InitSlaveServerTCP(const int port)
 	return socktd;
 }
 
-//·¢ËÍžüÐÂÊýŸÝµÄÊµŒÊ²Ù×÷
-//ÉŸµôÁË£¬²¢²»ÐèÒª
+//发送更新数据的实际操作
+//删掉了，不需要
 /* void  SendUpdateData(int sock)
 {
 	if(send(sock,&pkt_update,sizeof(pkt_update),0)<0)
